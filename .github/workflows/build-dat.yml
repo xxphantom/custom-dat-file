@@ -1,0 +1,64 @@
+name: Build and Release DAT File
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'lists/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+    
+    - name: Build DAT file
+      run: |
+        echo "Building custom.dat..."
+        make build
+    
+    - name: Generate version
+      id: version
+      run: |
+        # Generate version based on date and commit count
+        VERSION="v$(date +%Y.%m.%d)-$(git rev-list --count HEAD)"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Generated version: $VERSION"
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body: |
+          ## DAT File Update
+          
+          This release contains the latest `custom.dat` file built from the domain lists.
+          
+          ### Download
+          Direct download link: [custom.dat](https://github.com/${{ github.repository }}/releases/latest/download/custom.dat)
+          
+          ### Changes
+          Built from commit: ${{ github.sha }}
+          
+          ### Usage
+          ```bash
+          # Download directly to xray config directory
+          wget -O /usr/local/share/xray/custom.dat https://github.com/${{ github.repository }}/releases/latest/download/custom.dat
+          ```
+        files: output/custom.dat
+        draft: false
+        prerelease: false
